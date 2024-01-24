@@ -3,7 +3,7 @@ import * as THREE from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 import Stats from "three/examples/jsm/libs/stats.module.js";
 import { World } from "./world.js";
-import { createUI } from "./ui";
+import { setupUI } from "./ui";
 import { Player } from "./player.js";
 import { Physics } from "./physics";
 
@@ -30,14 +30,13 @@ const controls = new OrbitControls(orbitCamera, renderer.domElement);
 controls.target.set(16, 0, 16);
 controls.update();
 
-const physics = new Physics();
 //JAH FIRST - Scene setup
 const scene = new THREE.Scene();
+const player = new Player(scene);
+const physics = new Physics(scene);
 const world = new World();
 world.generate();
 scene.add(world);
-
-const player = new Player(scene);
 
 //JAH FIRST - setupLights
 function setupLights() {
@@ -70,6 +69,7 @@ function animate() {
 	let currentTime = performance.now();
 	let dt = (currentTime - previousTime) / 1000;
 
+	physics.update(dt, player, world);
 	requestAnimationFrame(animate);
 	player.applyInputs(dt);
 	// Renderiza la escena
@@ -98,5 +98,5 @@ window.addEventListener("resize", () => {
 });
 
 setupLights();
-createUI(world, player);
+setupUI(world, player, physics);
 animate();

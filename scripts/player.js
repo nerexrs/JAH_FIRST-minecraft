@@ -1,13 +1,7 @@
 import * as THREE from "three";
-
 import { PointerLockControls } from "three/addons/controls/PointerLockControls.js";
-export class Player {
-	radius = 0.5;
-	height = 1.75;
 
-	maxSpeed = 10;
-	input = new THREE.Vector3();
-	velocity = new THREE.Vector3();
+export class Player {
 	camera = new THREE.PerspectiveCamera(
 		70,
 		window.innerWidth / window.innerHeight,
@@ -16,61 +10,87 @@ export class Player {
 	);
 	controls = new PointerLockControls(this.camera, document.body);
 	cameraHelper = new THREE.CameraHelper(this.camera);
+
+	height = 1.75;
+	radius = 0.5;
+	maxSpeed = 5;
+	jumpSpeed = 10;
+	onGround = false;
+
+	velocity = new THREE.Vector3();
+	#worldVelocity = new THREE.Vector3();
+	input = new THREE.Vector3();
 	/**
 	 * @param {THREE.Scene} scene
 	 */
 	constructor(scene) {
 		this.position.set(32, 16, 32);
+		this.cameraHelper.visible = false;
 		scene.add(this.camera);
 		scene.add(this.cameraHelper);
+
+		// Wireframe mesh visualizing the player's bounding cylinder
+		this.boundsHelper = new THREE.Mesh(
+			new THREE.CylinderGeometry(this.radius, this.radius, this.height, 16),
+			new THREE.MeshBasicMaterial({ wireframe: true })
+		);
+		scene.add(this.boundsHelper);
+
+		// Add event listeners for keyboard/mouse events
 		document.addEventListener("keydown", this.onKeyDown.bind(this));
 		document.addEventListener("keyup", this.onKeyUp.bind(this));
 	}
 
+	/**
+	 * Updates the state of the player based on the current user inputs
+	 * @param {Number} dt
+	 */
 	applyInputs(dt) {
 		if (this.controls.isLocked) {
 			this.velocity.x = this.input.x;
 			this.velocity.z = this.input.z;
 			this.controls.moveRight(this.velocity.x * dt);
 			this.controls.moveForward(this.velocity.z * dt);
-
-			document.getElementById("player-position").innerHTML = this.toString();
+			this.position.y += this.velocity.y * dt;
 		}
+		document.getElementById("info-player-position").innerHTML = this.toString();
+	}
+	/**
+	 * Updates the position of the player's bounding cylinder helper
+	 */
+	updateBoundsHelper() {
+		this.boundsHelper.position.copy(this.camera.position);
+		this.boundsHelper.position.y -= this.height / 2;
 	}
 	/**JAH FIRST
-	 * @type {THREE.Vector3}
+	 * * Returns the current world position of the player
+	 * @returns {THREE.Vector3}
 	 */
 	get position() {
 		return this.camera.position;
 	}
 
-	/**JAH FIRST
-	 * Event handler for 'keydo' event
-	 * @param {KeyboardEvent} event
+	/**
+	 * Returns the velocity of the player in world coordinates
+	 * @returns {THREE.Vector3}
 	 */
-	onKeyDown(event) {
-		if (!this.controls.isLocked) {
-			this.controls.lock();
-			console.log("controlsLocked");
-		}
-
-		switch (event.code) {
-			case "KeyW":
-				this.input.z = this.maxSpeed;
-				break;
-			case "KeyA":
-				this.input.x = -this.maxSpeed;
-				break;
-			case "KeyS":
-				this.input.z = -this.maxSpeed;
-				break;
-			case "KeyD":
-				this.input.x = this.maxSpeed;
-				break;
-			default:
-				break;
-		}
+	get worldVelocity() {
+		this.#worldVelocity.copy(this.velocity);
+		this.#worldVelocity.applyEuler(
+			new THREE.Euler(0, this.camera.rotation.y, 0)
+		);
+		return this.#worldVelocity;
 	}
+
+	/**
+	 * Applies a change in velocity 'dv' that is specified in the world frame
+	 * @param {THREE.Vector3} dv
+	 */
+	applyWorldDeltaVelocity(dv) {
+		dv.applyEuler(new THREE.Euler(0, -this.camera.rotation.y, 0));
+		this.velocity.add(dv);
+	}
+
 	/**JAH FIRST
 	 * Event handler for 'keyup' event
 	 * @param {KeyboardEvent} event
@@ -95,6 +115,43 @@ export class Player {
 				break;
 		}
 	}
+
+	/**JAH FIRST
+	 * Event handler for 'keydown' event
+	 * @param {KeyboardEvent} event
+	 */
+	onKeyDown(event) {
+		if (!this.controls.isLocked) {
+			this.controls.lock();
+			console.log("controlsLocked");
+		}
+
+		switch (event.code) {
+			case "KeyW":
+				this.input.z = this.maxSpeed;
+				break;
+			case "KeyA":
+				this.input.x = -this.maxSpeed;
+				break;
+			case "KeyS":
+				this.input.z = -this.maxSpeed;
+				break;
+			case "KeyD":
+				this.input.x = this.maxSpeed;
+				break;
+			case "KeyR":
+				if (this.repeat) break;
+				this.position.set(32, 10, 32);
+				this.velocity.set(0, 0, 0);
+				break;
+			case "Space":
+				if (this.onGround) {
+					this.velocity.y += this.jumpSpeed;
+				}
+				break;
+		}
+	}
+
 	/**JAH FIRST
 	 * Returns player position in a readable string form
 	 * @returns {string}
